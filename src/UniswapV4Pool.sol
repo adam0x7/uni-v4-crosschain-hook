@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.20;
+pragma solidity ^0.8.24;
 
 import {IPoolManager} from "v4-core/interfaces/IPoolManager.sol";
 import {PoolKey} from "v4-core/types/PoolKey.sol";
@@ -15,15 +15,18 @@ contract UniswapV4Pool {
     PoolInitializeTest public initializeRouter;
     PoolModifyLiquidityTest public lpRouter;
     PoolSwapTest public swapRouter;
+    address hook;
 
     constructor(
         address _initializeRouter,
         address _lpRouter,
-        address _swapRouter
+        address _swapRouter,
+        address _hook
     ) {
         initializeRouter = PoolInitializeTest(_initializeRouter);
         lpRouter = PoolModifyLiquidityTest(_lpRouter);
         swapRouter = PoolSwapTest(_swapRouter);
+        hook = _hook;
     }
 
     function initializePool(
