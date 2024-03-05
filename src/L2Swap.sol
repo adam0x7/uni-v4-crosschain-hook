@@ -5,7 +5,7 @@ import {BaseHook} from "v4-periphery/BaseHook.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "path/to/UniswapV4RouterInterface.sol"; // Define or import Uniswap V4 Router Interface
 
-contract L2SwapHook is BaseHook {
+contract L2Hook is BaseHook {
     UniswapV4RouterInterface public uniswapRouter;
 
     constructor(IPoolManager _poolManager, UniswapV4RouterInterface _uniswapRouter)
