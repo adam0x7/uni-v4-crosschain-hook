@@ -49,21 +49,16 @@ contract L2Hook is BaseHook {
         
         address desiredToken = abi.decode(data, (address));
 
-        // Ensure that the token to swap (token1) is approved for the Uniswap Router
         IERC20 tokenToSwap = IERC20(Currency.unwrap(poolKey.currency1));
         tokenToSwap.approve(address(uniswapRouter), uint256(swapParams.amountSpecified));
 
         HookEnabledSwapRouter.TestSettings memory testSettings = HookEnabledSwapRouter.TestSettings(false, false);
-        // Perform the swap on Uniswap
         uniswapRouter.swap(
             poolKey,
             swapParams,
             testSettings,
             data
         );
-
-        // Reset approval to zero to follow the check-effects-interactions pattern
-        tokenToSwap.approve(address(uniswapRouter), 0);
 
         return L2Hook.afterSwap.selector;
     }

@@ -12,7 +12,7 @@ import {IERC20} from "lib/openzeppelin-contracts/contracts/token/ERC20/IERC20.so
 import {SafeERC20} from "lib/openzeppelin-contracts/contracts/token/ERC20/utils/SafeERC20.sol";
 import {Currency} from "lib/v4-core/src/types/Currency.sol";
 
-contract L1SwapAndBridgeHook is BaseHook {
+contract CrossChainHook is BaseHook {
     using PoolIdLibrary for PoolKey;
     using SafeERC20 for IERC20;
 
@@ -54,30 +54,27 @@ contract L1SwapAndBridgeHook is BaseHook {
         BalanceDelta balanceDelta,
         bytes calldata data
     ) external override poolManagerOnly returns (bytes4) {
-        // Ensure the swapped token is WETH
+        
         require(Currency.unwrap(poolKey.currency1) == wethAddress, "Swapped token is not WETH");
 
-        // Calculate the amount of WETH obtained from the swap
         int128 amountWETHInt = balanceDelta.amount1();
         require(amountWETHInt >= 0, "Negative WETH balance change not allowed");
-        uint128 amountWETHUnsigned = uint128(amountWETHInt); // First, convert to uint128
-        uint256 amountWETH = uint256(amountWETHUnsigned); // Then, convert to uint256
+        uint128 amountWETHUnsigned = uint128(amountWETHInt);
+        uint256 amountWETH = uint256(amountWETHUnsigned);
 
-        // Approve the SpokePool to take the WETH
         IERC20(wethAddress).approve(address(spokePool), amountWETH);
 
-        // Deposit WETH into Across SpokePool for bridging to Optimism
         spokePool.deposit(
             sender,
-            wethAddress, // WETH as the token to bridge
+            wethAddress,
             amountWETH,
-            10, // destinationChainId for Optimism
-            0, // relayerFeePct, to be determined
-            uint32(block.timestamp), // quoteTimestamp
-            data, // additional data if needed
-            1 // maxCount, set according to Across Protocol requirements
+            10, // destinationChainId, just testing for optimism
+            0, // relayerFeePct
+            uint32(block.timestamp), 
+            data,
+            1 
         );
 
-        return L1SwapAndBridgeHook.afterSwap.selector;
+        return CrossChainHook.afterSwap.selector;
     }
 }
