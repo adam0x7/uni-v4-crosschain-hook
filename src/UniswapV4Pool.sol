@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.24;
 
-import {IPoolManager} from "v4-core/interfaces/IPoolManager.sol";
-import {PoolKey} from "v4-core/types/PoolKey.sol";
-import {IHooks} from "v4-core/interfaces/IHooks.sol";
-import {Currency, CurrencyLibrary} from "v4-core/types/Currency.sol";
-import {PoolInitializeTest} from "v4-core/test/PoolInitializeTest.sol";
+import {IPoolManager} from "v4-core/src/interfaces/IPoolManager.sol";
+import {PoolKey} from "v4-core/src/types/PoolKey.sol";
+import {IHooks} from "v4-core/src/interfaces/IHooks.sol";
+import {Currency, CurrencyLibrary} from "v4-core/src/types/Currency.sol";
+import {PoolInitializeTest} from "v4-core/test/PoolManagerInitialize.t.sol";
 import {PoolModifyLiquidityTest} from "v4-core/test/PoolModifyLiquidityTest.sol";
 import {PoolSwapTest} from "v4-core/test/PoolSwapTest.sol";
 import {TickMath} from "v4-core/libraries/TickMath.sol";

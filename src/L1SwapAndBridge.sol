@@ -1,10 +1,16 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity ^0.8.24;
+pragma solidity ^0.8.19;
 
-import {BaseHook} from "v4-periphery/BaseHook.sol";
-import "@across/contracts/interfaces/SpokePoolInterface.sol";
-import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import {BaseHook} from "lib/v4-periphery/contracts/BaseHook.sol";
+import {Hooks} from "lib/v4-core/src/libraries/Hooks.sol";
+import {PoolId, PoolIdLibrary} from "lib/v4-core/src/types/PoolId.sol";
+import {PoolKey} from "lib/v4-core/src/types/PoolKey.sol";
+import {IPoolManager} from "lib/v4-core/src/interfaces/IPoolManager.sol";
+import {BalanceDelta} from "lib/v4-core/src/types/BalanceDelta.sol";
+import {SpokePoolInterface} from "lib/contracts-v2/contracts/interfaces/SpokePoolInterface.sol";
+import {IERC20} from "lib/openzeppelin-contracts/contracts/token/ERC20/IERC20.sol";
+import {SafeERC20} from "lib/openzeppelin-contracts/contracts/token/ERC20/utils/SafeERC20.sol";
+import {Currency} from "lib/v4-core/src/types/Currency.sol";
 
 contract L1SwapAndBridgeHook is BaseHook {
     using PoolIdLibrary for PoolKey;
@@ -24,21 +30,41 @@ contract L1SwapAndBridgeHook is BaseHook {
         wethAddress = _wethAddress;
     }
 
+    function getHookPermissions() public pure override returns (Hooks.Permissions memory) {
+        return Hooks.Permissions({
+            beforeInitialize: false,
+            afterInitialize: false,
+            beforeAddLiquidity: true,
+            afterAddLiquidity: false,
+            beforeRemoveLiquidity: false,
+            afterRemoveLiquidity: false,
+            beforeSwap: false,
+            afterSwap: true,
+            beforeDonate: false,
+            afterDonate: false,
+            noOp: false,
+            accessLock: false
+        });
+    }
+
     function afterSwap(
         address sender,
         PoolKey calldata poolKey,
         IPoolManager.SwapParams calldata swapParams,
-        BalanceDelta calldata balanceDelta,
+        BalanceDelta balanceDelta,
         bytes calldata data
     ) external override poolManagerOnly returns (bytes4) {
         // Ensure the swapped token is WETH
-        require(poolKey.token1 == wethAddress, "Swapped token is not WETH");
+        require(Currency.unwrap(poolKey.currency1) == wethAddress, "Swapped token is not WETH");
 
         // Calculate the amount of WETH obtained from the swap
-        uint256 amountWETH = uint256(balanceDelta.token1Delta);
+        int128 amountWETHInt = balanceDelta.amount1();
+        require(amountWETHInt >= 0, "Negative WETH balance change not allowed");
+        uint128 amountWETHUnsigned = uint128(amountWETHInt); // First, convert to uint128
+        uint256 amountWETH = uint256(amountWETHUnsigned); // Then, convert to uint256
 
         // Approve the SpokePool to take the WETH
-        IERC20(wethAddress).safeApprove(address(spokePool), amountWETH);
+        IERC20(wethAddress).approve(address(spokePool), amountWETH);
 
         // Deposit WETH into Across SpokePool for bridging to Optimism
         spokePool.deposit(
@@ -47,11 +73,11 @@ contract L1SwapAndBridgeHook is BaseHook {
             amountWETH,
             10, // destinationChainId for Optimism
             0, // relayerFeePct, to be determined
-            block.timestamp, // quoteTimestamp
+            uint32(block.timestamp), // quoteTimestamp
             data, // additional data if needed
             1 // maxCount, set according to Across Protocol requirements
         );
 
-        return IHooks.afterSwap.selector;
+        return L1SwapAndBridgeHook.afterSwap.selector;
     }
 }

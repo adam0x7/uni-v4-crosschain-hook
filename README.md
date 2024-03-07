@@ -1,5 +1,5 @@
 # Cross-Chain Hook Process Overview
-
+![Hook Art](/hook_art.webp)
 This document outlines the process of a cross-chain hook designed to facilitate asset transfers from Ethereum L1 to Optimism L2, leveraging the Across Protocol for efficient and secure bridging. The process integrates smart contract operations with off-chain logic managed by a frontend application, ensuring a seamless user experience for cross-chain transactions.
 
 
