@@ -15,6 +15,7 @@ import {CurrencyLibrary, Currency} from "v4-core/src/types/Currency.sol";
 import {V3SpokePoolInterface} from "lib/contracts-v2/contracts/interfaces/V3SpokePoolInterface.sol";
 
 contract CrossChainHookTest is Test, Deployers { 
+
     using PoolIdLibrary for PoolKey;
     using CurrencyLibrary for Currency;
 
@@ -27,58 +28,72 @@ contract CrossChainHookTest is Test, Deployers {
     uint256 ethFork = vm.createFork(eth_fork);
     uint256 opFork = vm.createFork(op_fork);
 
+    PoolKey eth_poolKey;
+    PoolId eth_poolId;
 
-    function setUp() public { 
-        //deploy uniswap pool w/ hook
-        //deploy spoke pools on respective chains
-        vm.selectFork(ethFork);
-        Deployers.deployFreshManagerAndRouters();
-        Deployers.deployMintAndApprove2Currencies();
-        
-        uint160 flag = uint160(Hooks.AFTER_SWAP_FLAG); // flag is used for hook bytecode
+    PoolKey op_poolKey;
+    PoolId op_poolId;
 
-        (address hookAddress, bytes32 salt) = HookMiner.find(address(this), flag, type(CrossChainHook).creationCode , abi.encode(address(manager)));
+    address public relayer;
 
-        crossChainHook = new CrossChainHook{salt: salt}(IPoolManager(address(manager)), V3SpokePoolInterface(address(0)), address(0));
-        require(address(crossChainHook) == hookAddress, "CrossChainHookTest: hook address mismatch");
 
-        key = PoolKey(currency0, currency1, 3000, 60, IHooks(address(crossChainHook)));
-        PoolId poolId = key.toId();
-        initializeRouter.initialize(key, SQRT_RATIO_1_1, ZERO_BYTES);
 
-        modifyLiquidityRouter.modifyLiquidity(key, IPoolManager.ModifyLiquidityParams(-60, 60, 10 ether), ZERO_BYTES);
-        modifyLiquidityRouter.modifyLiquidity(key, IPoolManager.ModifyLiquidityParams(-120, 120, 10 ether), ZERO_BYTES);
-        modifyLiquidityRouter.modifyLiquidity(
-            key,
-            IPoolManager.ModifyLiquidityParams(TickMath.minUsableTick(60), TickMath.maxUsableTick(60), 10 ether),
-            ZERO_BYTES
-        );
-    }
+function setUp() public {
+    // Ethereum 
+    vm.selectFork(ethFork);
+    deployFreshManagerAndRouters();
+    (Currency eth_currency0, Currency eth_currency1) = deployMintAndApprove2Currencies();
 
-    function testForkIdDifferent() public { 
-        bool isDifferent = ethFork != opFork;
-        assertEq(isDifferent, true);
-    }
+    token0 = MockERC20(Currency.unwrap(eth_currency0));
+    token1 = MockERC20(Currency.unwrap(eth_currency1));
+
+    uint160 flag = uint160(Hooks.AFTER_SWAP_FLAG); // flag is used for hook bytecode
+
+    (address eth_hookAddress, bytes32 salt) = HookMiner.find(address(this), flag, type(CrossChainHook).creationCode, abi.encode(address(manager)));
+
+    crossChainHook = new CrossChainHook{salt: salt}(IPoolManager(address(manager)), V3SpokePoolInterface(address(0)), address(0));
+    require(address(crossChainHook) == eth_hookAddress, "CrossChainHookTest: hook address mismatch");
+
+    (eth_poolKey, eth_poolId) = initPool(eth_currency0,
+                                                         eth_currency1, 
+                                                         IHooks(address(crossChainHook)), 
+                                                         3000, 60, SQRT_RATIO_1_1, ZERO_BYTES);
+
+    modifyLiquidityRouter.modifyLiquidity(eth_poolKey, IPoolManager.ModifyLiquidityParams(-60, 60, 10 ether), ZERO_BYTES);
+
+    // Optimism 
+    vm.selectFork(opFork);
+    relayer = vm.addr(1); 
+    vm.deal(relayer, 10 ether);
+    deployFreshManagerAndRouters();
+    (Currency op_currency0, Currency op_currency1) = deployMintAndApprove2Currencies();
+    MockERC20 op_token0 = MockERC20(Currency.unwrap(op_currency0));
+    MockERC20 op_token1 = MockERC20(Currency.unwrap(op_currency1));
+
+    (op_poolKey, op_poolId) = initPool(op_currency0,
+                                                      op_currency1,
+                                                      IHooks(address(0)), // No hook for L2 in
+                                                      3000,
+                                                      SQRT_RATIO_1_2,
+                                                      ZERO_BYTES);
+
+    modifyLiquidityRouter.modifyLiquidity(op_poolKey, IPoolManager.ModifyLiquidityParams(-60, 60, 10 ether), ZERO_BYTES);
+}
 
     function testSwapAndBridge() public {
-    // Step 1: Setup and Initialization
-    Deployers deployers = new Deployers();
-    deployers.initializeManagerRoutersAndPoolsWithLiq(IHooks(address(crossChainHook)));
-    (Currency currency0, Currency currency1) = deployers.deployMintAndApprove2Currencies();
+        uint256 swapAmount = 1 ether;
 
-    // Assuming `currency0` is the token you're swapping from, and `currency1` is what you're swapping to
-    address user = address(this); // Test account
-    uint256 amountToken0 = 1e18; // Example amount to swap
+        vm.selectFork(ethFork);
+        vm.expectEmit(eth_spoke_pool);
+        emit V3SpokePoolInterface.V3FundsDeposited();
+        swap(eth_poolKey, true, swapAmount, "");
 
-    // Step 2: Perform a Swap
-    // This swap should trigger the CrossChainHook's afterSwap function
-    deployers.swap(deployers.key, true, int256(amountToken0), abi.encode(address(currency1)));
+        vm.selectFork(opFork);
+        vm.startPrank(relayer);
+        payable(address(this)).transfer(swapAmount);
+        vm.stopPrank();
 
-    // Step 3: Verify L1 Deposit Event
-    // Use Foundry's expectEmit to check for the V3FundsDeposited event
-    // This step assumes you have a way to listen for or simulate the event emission in your test environment
+        assertEq(address(this).balance, swapAmount);
 
-    // Step 4: Simulate or Verify L2 Deposit
-    // Depending on your testing capabilities, simulate the L2 deposit or verify it if your setup allows observation of L2 state/events
-}
+    }
 }
