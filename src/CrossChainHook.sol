@@ -7,7 +7,7 @@ import {PoolId, PoolIdLibrary} from "lib/v4-core/src/types/PoolId.sol";
 import {PoolKey} from "lib/v4-core/src/types/PoolKey.sol";
 import {IPoolManager} from "lib/v4-core/src/interfaces/IPoolManager.sol";
 import {BalanceDelta} from "lib/v4-core/src/types/BalanceDelta.sol";
-import {SpokePoolInterface} from "lib/contracts-v2/contracts/interfaces/SpokePoolInterface.sol";
+import {V3SpokePoolInterface} from "lib/contracts-v2/contracts/interfaces/V3SpokePoolInterface.sol";
 import {IERC20} from "lib/openzeppelin-contracts/contracts/token/ERC20/IERC20.sol";
 import {SafeERC20} from "lib/openzeppelin-contracts/contracts/token/ERC20/utils/SafeERC20.sol";
 import {Currency} from "lib/v4-core/src/types/Currency.sol";
@@ -16,17 +16,17 @@ contract CrossChainHook is BaseHook {
     using PoolIdLibrary for PoolKey;
     using SafeERC20 for IERC20;
 
-    SpokePoolInterface public spokePool;
+    V3SpokePoolInterface public spokePoolV3;
     address public wethAddress;
 
     constructor(
         IPoolManager _poolManager, 
-        SpokePoolInterface _spokePool,
+        V3SpokePoolInterface _spokePoolV3,
         address _wethAddress
     )
         BaseHook(_poolManager)
     {
-        spokePool = _spokePool;
+        spokePoolV3 = _spokePoolV3;
         wethAddress = _wethAddress;
     }
 
@@ -62,17 +62,29 @@ contract CrossChainHook is BaseHook {
         uint128 amountWETHUnsigned = uint128(amountWETHInt);
         uint256 amountWETH = uint256(amountWETHUnsigned);
 
-        IERC20(wethAddress).approve(address(spokePool), amountWETH);
+        // Assuming you have these values available or calculated earlier in your function
+        uint256 destinationChainId = 10; // For example, for Optimism
+        uint32 quoteTimestamp = uint32(block.timestamp); // Simplified example, adjust as needed
+        uint32 fillDeadline = quoteTimestamp + 1 hours; // Example deadline, adjust as needed
+        uint32 exclusivityDeadline = quoteTimestamp + 15 minutes; // Example deadline, adjust as needed
 
-        spokePool.deposit(
-            sender,
-            wethAddress,
-            amountWETH,
-            10, // destinationChainId, just testing for optimism
-            0, // relayerFeePct
-            uint32(block.timestamp), 
-            data,
-            1 
+        // Approve the V3 SpokePool to spend WETH
+        IERC20(wethAddress).approve(address(spokePoolV3), amountWETH);
+
+        // Call depositV3 on the V3 SpokePool
+        spokePoolV3.depositV3(
+            sender, // depositor
+            sender, // recipient on the destination chain
+            wethAddress, // inputToken (WETH)
+            wethAddress, // outputToken (WETH, assuming no change)
+            amountWETH, // inputAmount
+            amountWETH, // outputAmount, assuming no fees for simplicity
+            destinationChainId,
+            address(0), // exclusiveRelayer, assuming open to any relayer
+            quoteTimestamp,
+            fillDeadline,
+            exclusivityDeadline,
+            data // forwarding data to the recipient
         );
 
         return CrossChainHook.afterSwap.selector;
