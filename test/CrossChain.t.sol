@@ -33,7 +33,7 @@ contract CrossChainHookTest is Test, Deployers {
         uint160 flag = uint160(Hooks.AFTER_SWAP_FLAG); // flag is used for hook bytecode
         (address hookAddress, bytes32 salt) = HookMiner.find(address(this), flag, type(CrossChainHook).creationCode , abi.encode(address(manager)));
 
-        
+
 
         crossChainHook = new CrossChainHook{salt: salt}(IPoolManager(address(manager)), SpokePoolInterface(address(0)), address(0));
         require(address(crossChainHook) == hookAddress, "CrossChainHookTest: hook address mismatch");
@@ -49,9 +49,6 @@ contract CrossChainHookTest is Test, Deployers {
             IPoolManager.ModifyLiquidityParams(TickMath.minUsableTick(60), TickMath.maxUsableTick(60), 10 ether),
             ZERO_BYTES
         );
-
-
-
 
         vm.selectFork(polyFork);
     }
