@@ -13,6 +13,7 @@ import {IPoolManager} from "v4-core/src/interfaces/IPoolManager.sol";
 import {IHooks} from "v4-core/src/interfaces/IHooks.sol";
 import {CurrencyLibrary, Currency} from "v4-core/src/types/Currency.sol";
 import {V3SpokePoolInterface} from "lib/contracts-v2/contracts/interfaces/V3SpokePoolInterface.sol";
+import {MockERC20} from "solmate/test/utils/mocks/MockERC20.sol";
 
 contract CrossChainHookTest is Test, Deployers {
     using PoolIdLibrary for PoolKey;
@@ -43,7 +44,7 @@ contract CrossChainHookTest is Test, Deployers {
         ethForkId = vm.createFork(ethFork);
         vm.selectFork(ethForkId);
         deployFreshManagerAndRouters();
-        (Currency memory ethCurrency0, Currency memory ethCurrency1) = deployMintAndApprove2Currencies();
+        (Currency ethCurrency0, Currency ethCurrency1) = deployMintAndApprove2Currencies();
 
         token0 = MockERC20(Currency.unwrap(ethCurrency0));
         token1 = MockERC20(Currency.unwrap(ethCurrency1));
@@ -68,7 +69,6 @@ contract CrossChainHookTest is Test, Deployers {
             ethCurrency1,
             IHooks(address(crossChainHook)),
             3000,
-            60,
             SQRT_RATIO_1_1,
             ZERO_BYTES
         );
@@ -81,7 +81,7 @@ contract CrossChainHookTest is Test, Deployers {
         relayer = vm.addr(1);
         vm.deal(relayer, 10 ether);
         deployFreshManagerAndRouters();
-        (Currency memory opCurrency0, Currency memory opCurrency1) = deployMintAndApprove2Currencies();
+        (Currency opCurrency0, Currency opCurrency1) = deployMintAndApprove2Currencies();
         MockERC20 opToken0 = MockERC20(Currency.unwrap(opCurrency0));
         MockERC20 opToken1 = MockERC20(Currency.unwrap(opCurrency1));
 
@@ -90,7 +90,6 @@ contract CrossChainHookTest is Test, Deployers {
             opCurrency1,
             IHooks(address(0)),
             3000,
-            60,
             SQRT_RATIO_1_2,
             ZERO_BYTES
         );
@@ -99,11 +98,25 @@ contract CrossChainHookTest is Test, Deployers {
     }
 
     function testSwapAndBridge() public {
-        uint256 swapAmount = 1 ether;
+        int256 swapAmount = 1 ether;
 
         vm.selectFork(ethForkId);
         vm.expectEmit(ethSpokePool);
-        emit V3SpokePoolInterface.V3FundsDeposited();
+        emit V3FundsDeposited(
+            address(token0),
+            address(token1),
+            uint256(swapAmount),
+            uint256(swapAmount),
+            uint256(opForkId),
+            uint32(0),
+            uint32(block.timestamp),
+            uint32(block.timestamp + 1 hours),
+            uint32(block.timestamp + 15 minutes),
+            address(this),
+            address(this),
+            address(0),
+            ""
+        );
         swap(ethPoolKey, true, swapAmount, "");
 
         vm.selectFork(opForkId);
