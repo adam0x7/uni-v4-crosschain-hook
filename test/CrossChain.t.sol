@@ -25,6 +25,7 @@ contract CrossChainHookTest is Test, Deployers {
 
     address public ethSpokePool = 0x5c7BCd6E7De5423a257D81B442095A1a6ced35C5;
 
+
     uint256 private ethForkId;
     uint256 private opForkId;
 
@@ -78,8 +79,8 @@ contract CrossChainHookTest is Test, Deployers {
         // Optimism
         opForkId = vm.createFork(opFork);
         vm.selectFork(opForkId);
-        relayer = vm.addr(1);
-        vm.deal(relayer, 10 ether);
+        // relayer = vm.addr(1);
+        // vm.deal(relayer, 10 ether);
         deployFreshManagerAndRouters();
         (Currency opCurrency0, Currency opCurrency1) = deployMintAndApprove2Currencies();
         MockERC20 opToken0 = MockERC20(Currency.unwrap(opCurrency0));
