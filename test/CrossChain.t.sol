@@ -121,10 +121,6 @@ contract CrossChainHookTest is Test, Deployers {
         swap(ethPoolKey, true, swapAmount, "");
 
         vm.selectFork(opForkId);
-        vm.startPrank(relayer);
-        payable(address(this)).transfer(swapAmount);
-        vm.stopPrank();
-
         assertEq(address(this).balance, swapAmount);
     }
 }

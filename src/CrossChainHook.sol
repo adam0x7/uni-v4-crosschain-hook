@@ -80,7 +80,7 @@ contract CrossChainHook is BaseHook {
             amountWETH, // inputAmount
             amountWETH, // outputAmount, assuming no fees for simplicity
             destinationChainId,
-            address(0), // exclusiveRelayer, assuming open to any relayer
+            address(0),
             quoteTimestamp,
             fillDeadline,
             exclusivityDeadline,
