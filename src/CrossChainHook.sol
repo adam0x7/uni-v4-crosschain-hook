@@ -62,13 +62,12 @@ contract CrossChainHook is BaseHook {
         uint128 amountWETHUnsigned = uint128(amountWETHInt);
         uint256 amountWETH = uint256(amountWETHUnsigned);
 
-        // Assuming you have these values available or calculated earlier in your function
-        uint256 destinationChainId = 10; // For example, for Optimism
-        uint32 quoteTimestamp = uint32(block.timestamp); // Simplified example, adjust as needed
-        uint32 fillDeadline = quoteTimestamp + 1 hours; // Example deadline, adjust as needed
-        uint32 exclusivityDeadline = quoteTimestamp + 15 minutes; // Example deadline, adjust as needed
+        
+        uint256 destinationChainId = 10; 
+        uint32 quoteTimestamp = uint32(block.timestamp); 
+        uint32 fillDeadline = quoteTimestamp + 1 hours; 
+        uint32 exclusivityDeadline = quoteTimestamp + 15 minutes; 
 
-        // Approve the V3 SpokePool to spend WETH
         IERC20(wethAddress).approve(address(spokePoolV3), amountWETH);
 
         // Call depositV3 on the V3 SpokePool
