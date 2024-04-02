@@ -60,11 +60,13 @@ contract CrossChainHookTest is Test, Deployers {
             type(CrossChainHook).creationCode,
             abi.encode(address(manager))
         );
-
+        
+        uint256 opChainId = 10;
         crossChainHook = new CrossChainHook{salt: salt}(
             IPoolManager(address(manager)),
             V3SpokePoolInterface(address(ethSpokePool)),
-            address(Currency.unwrap(ethCurrency1))
+            address(Currency.unwrap(ethCurrency1)),
+            opChainId
         );
         require(address(crossChainHook) == ethHookAddress, "hook address mismatch");
 

@@ -24,7 +24,7 @@ contract CrossChainHook is BaseHook {
     constructor(
         IPoolManager _poolManager, 
         V3SpokePoolInterface _spokePoolV3,
-        address _wethAddress
+        address _wethAddress,
         uint256 _destinationChainId
     )
         BaseHook(_poolManager)
