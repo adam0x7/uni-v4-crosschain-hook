@@ -51,43 +51,44 @@ contract CrossChainHook is BaseHook {
         });
     }
 
-    function afterSwap(
-        address sender,
-        PoolKey calldata poolKey,
-        IPoolManager.SwapParams calldata swapParams,
-        BalanceDelta balanceDelta,
-        bytes calldata data
-    ) external override poolManagerOnly returns (bytes4) {
-        
-        require(Currency.unwrap(poolKey.currency1) == wethAddress, "Swapped token is not WETH");
+function afterSwap(
+    address sender,
+    PoolKey calldata poolKey,
+    IPoolManager.SwapParams calldata swapParams,
+    BalanceDelta balanceDelta,
+    bytes calldata data
+) external override poolManagerOnly returns (bytes4) {
+    require(Currency.unwrap(poolKey.currency1) == wethAddress, "Swapped token is not WETH");
+    int128 amountWETHInt = balanceDelta.amount1();
+    require(amountWETHInt >= 0, "Negative WETH balance change not allowed");
+    uint128 amountWETHUnsigned = uint128(amountWETHInt);
+    uint256 amountWETH = uint256(amountWETHUnsigned);
 
-        int128 amountWETHInt = balanceDelta.amount1();
-        require(amountWETHInt >= 0, "Negative WETH balance change not allowed");
-        uint128 amountWETHUnsigned = uint128(amountWETHInt);
-        uint256 amountWETH = uint256(amountWETHUnsigned);
+    _depositToSpokePool(amountWETH, data);
 
-        
-        uint32 quoteTimestamp = uint32(block.timestamp); 
-        uint32 fillDeadline = quoteTimestamp + 1 hours; 
-        uint32 exclusivityDeadline = quoteTimestamp + 15 minutes; 
+    return CrossChainHook.afterSwap.selector;
+}
 
-        IERC20(wethAddress).approve(address(spokePoolV3), amountWETH);
+function _depositToSpokePool(uint256 amountWETH, bytes calldata data) internal {
+    uint32 quoteTimestamp = uint32(block.timestamp);
+    uint32 fillDeadline = quoteTimestamp + 1 hours;
+    uint32 exclusivityDeadline = quoteTimestamp + 15 minutes;
 
-        spokePoolV3.depositV3(
-            sender, // depositor
-            sender, // recipient on the destination chain
-            wethAddress, // inputToken (WETH)
-            wethAddress, // outputToken (WETH, assuming no change)
-            amountWETH, // inputAmount
-            amountWETH, // outputAmount, assuming no fees for simplicity
-            destinationChainId,
-            address(0),
-            quoteTimestamp,
-            fillDeadline,
-            exclusivityDeadline,
-            data // forwarding data to the recipient
-        );
+    IERC20(wethAddress).approve(address(spokePoolV3), amountWETH);
 
-        return CrossChainHook.afterSwap.selector;
-    }
+    spokePoolV3.depositV3(
+        msg.sender,
+        msg.sender,
+        wethAddress,
+        wethAddress,
+        amountWETH,
+        amountWETH,
+        destinationChainId,
+        address(0),
+        quoteTimestamp,
+        fillDeadline,
+        exclusivityDeadline,
+        data
+    );
+}
 }
