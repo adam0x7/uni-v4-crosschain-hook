@@ -15,6 +15,8 @@ import {Currency} from "lib/v4-core/src/types/Currency.sol";
 contract CrossChainHook is BaseHook {
     using PoolIdLibrary for PoolKey;
     using SafeERC20 for IERC20;
+    uint256 destinationChainId; 
+
 
     V3SpokePoolInterface public spokePoolV3;
     address public wethAddress;
@@ -23,18 +25,20 @@ contract CrossChainHook is BaseHook {
         IPoolManager _poolManager, 
         V3SpokePoolInterface _spokePoolV3,
         address _wethAddress
+        uint256 _destinationChainId
     )
         BaseHook(_poolManager)
     {
         spokePoolV3 = _spokePoolV3;
         wethAddress = _wethAddress;
+        destinationChainId = _destinationChainId;
     }
 
     function getHookPermissions() public pure override returns (Hooks.Permissions memory) {
         return Hooks.Permissions({
             beforeInitialize: false,
             afterInitialize: false,
-            beforeAddLiquidity: true,
+            beforeAddLiquidity: false,
             afterAddLiquidity: false,
             beforeRemoveLiquidity: false,
             afterRemoveLiquidity: false,
@@ -63,14 +67,12 @@ contract CrossChainHook is BaseHook {
         uint256 amountWETH = uint256(amountWETHUnsigned);
 
         
-        uint256 destinationChainId = 10; 
         uint32 quoteTimestamp = uint32(block.timestamp); 
         uint32 fillDeadline = quoteTimestamp + 1 hours; 
         uint32 exclusivityDeadline = quoteTimestamp + 15 minutes; 
 
         IERC20(wethAddress).approve(address(spokePoolV3), amountWETH);
 
-        // Call depositV3 on the V3 SpokePool
         spokePoolV3.depositV3(
             sender, // depositor
             sender, // recipient on the destination chain
