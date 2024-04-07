@@ -44,6 +44,8 @@ contract CrossChainHookTest is Test, Deployers {
     MockERC20 private opToken1;
 
     function setUp() public {
+        vm.deal(address(this), 10 ether);
+        
         // Ethereum
         ethForkId = vm.createFork(ethFork);
         vm.selectFork(ethForkId);
